@@ -1,0 +1,28 @@
+{
+  "name": "fxdao-sdk-js",
+  "version": "0.1.0",
+  "description": "A JS package for interacting with the FxDAO contracts easily",
+  "main": "lib/index",
+  "types": "lib/index",
+  "files": [
+    "lib",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "npx tsc -p ."
+  },
+  "author": "FxDAO LLC (https://fxdao.io)",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.59.11",
+    "@typescript-eslint/parser": "^5.59.11",
+    "eslint": "^8.42.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.2.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
+  }
+}
