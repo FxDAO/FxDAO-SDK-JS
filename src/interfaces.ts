@@ -1,8 +1,3 @@
-import { Networks } from 'soroban-client';
-
-export type u32 = number;
-export type u128 = bigint;
-
 export enum Denomination {
   usd = 'usd',
   eur = 'eur',
@@ -26,17 +21,6 @@ export enum FxDAOContractMethods {
   get_vaults = 'get_vaults',
   new_vault = 'new_vault',
   get_vaults_info = 'get_vaults_info',
-}
-
-export interface FxDAOParams {
-  /*
-   * Simulation account is an existing account in the selected network, it doesn't need to be a owned account.
-   * This account is used to simulate transactions that won't send a transaction (for example when you get the rate of a currency)
-   */
-  simulationAccount: string;
-  contracts: Array<{ id: string; contract: FxDAOContract }>;
-  defaultFee: string;
-  rpc: string;
-  allowHttp?: boolean;
-  network: Networks;
+  redeem = 'redeem',
+  liquidate = 'liquidate',
 }
