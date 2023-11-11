@@ -1,11 +1,13 @@
-import { OptionalVaultKey } from './bindings/vaults';
-import { nativeToScVal, xdr } from 'soroban-client';
+import { nativeToScVal, scValToNative, SorobanRpc, xdr } from 'soroban-client';
+import { VaultsTypes } from './interfaces/vaults';
+import { VaultsErrors } from './errors/vaults';
+import { SafetyPoolErrors } from './errors/satefy-pool';
 
 export function calculateVaultIndex(params: { collateral: bigint; debt: bigint }): bigint {
   return (params.collateral * 1000000000n) / params.debt;
 }
 
-export function generateOptionalVaultKeyScVal(vaultKey: OptionalVaultKey): xdr.ScVal {
+export function generateOptionalVaultKeyScVal(vaultKey: VaultsTypes['OptionalVaultKey']): xdr.ScVal {
   const struct: xdr.ScVal[] = [];
   struct.push(xdr.ScVal.scvSymbol(vaultKey[0]));
 
@@ -29,4 +31,68 @@ export function generateOptionalVaultKeyScVal(vaultKey: OptionalVaultKey): xdr.S
   }
 
   return xdr.ScVal.scvVec(struct);
+}
+
+export enum ParseErrorType {
+  vault,
+  safety_pool,
+  stable_pool,
+  governance,
+}
+
+export function parseError(
+  type: ParseErrorType,
+  response: SorobanRpc.SimulateTransactionErrorResponse
+): {
+  error: number;
+  message: string;
+  diagnostic?: string;
+} {
+  const error: number = errorCodeFromSimulated(response);
+  let message: string;
+
+  if (error === 10) {
+    message = 'Not enough funds, make sure you have enough funds to complete the process';
+  } else {
+    switch (type) {
+      case ParseErrorType.vault:
+        message = VaultsErrors[error] || 'Unhandled error, please contact support (Code: Vault-00)';
+        break;
+
+      case ParseErrorType.safety_pool:
+        message = SafetyPoolErrors[error] || 'Unhandled error, please contact support (Code: SafetyPool-00)';
+        break;
+
+      default:
+        message = 'Unhandled error';
+        break;
+    }
+  }
+
+  return {
+    error,
+    message,
+    diagnostic: response.error,
+  };
+}
+
+export function errorCodeFromSimulated(response: SorobanRpc.SimulateTransactionErrorResponse): number | -1 {
+  let errorCode: number;
+  try {
+    const errorCodeVal = (response as any).events
+      .slice(-1)[0]
+      .event()
+      .body()
+      .value()
+      .data()
+      .value()
+      .slice(-1)[0]
+      .value();
+
+    errorCode = scValToNative(errorCodeVal);
+  } catch (e) {
+    errorCode = -1;
+  }
+
+  return errorCode;
 }

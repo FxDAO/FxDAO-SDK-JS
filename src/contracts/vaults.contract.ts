@@ -1,42 +1,35 @@
 import {
   Account,
+  Address,
+  assembleTransaction,
   Contract,
+  Memo,
+  nativeToScVal,
+  scValToBigInt,
+  scValToNative,
   Server,
+  SorobanRpc,
   TransactionBuilder,
   xdr,
-  nativeToScVal,
-  SorobanRpc,
-  scValToNative,
-  scValToBigInt,
-  assembleTransaction,
-  Memo,
-  Address,
-  Networks,
 } from 'soroban-client';
 
-import { Denomination, FxDAOContract, FxDAOContractMethods, UpdateVaultOperationType } from './interfaces';
-import { VaultsErrors } from './errors';
+import {
+  DefaultContractParams,
+  DefaultContractTransactionGenerationResponse,
+  Denomination,
+  FxDAOVaultsContractMethods,
+  u128,
+  u32,
+  UpdateVaultOperationType,
+} from '../interfaces';
+import { calculateVaultIndex, generateOptionalVaultKeyScVal, parseError, ParseErrorType } from '../utils';
+import { VaultsTypes } from '../interfaces/vaults';
 import isSimulationError = SorobanRpc.isSimulationError;
-import { Vault, OptionalVaultKey, VaultKey, VaultsInfo, u128, u32 } from './bindings/vaults';
-import { calculateVaultIndex, generateOptionalVaultKeyScVal } from './utils';
-
-export interface VaultsContractParams {
-  /*
-   * Simulation account is an existing account in the selected network, it doesn't need to be a owned account.
-   * This account is used to simulate transactions that won't send a transaction (for example when you get the rate of a currency)
-   */
-  simulationAccount: string;
-  contractId: string;
-  defaultFee: string;
-  rpc: string;
-  allowHttp?: boolean;
-  network: Networks;
-}
 
 export class VaultsContract {
-  private readonly globalParams: VaultsContractParams;
+  private readonly globalParams: DefaultContractParams;
 
-  constructor(params: VaultsContractParams) {
+  constructor(params: DefaultContractParams) {
     this.globalParams = params;
   }
 
@@ -44,7 +37,7 @@ export class VaultsContract {
     return new Server(this.globalParams.rpc, { allowHttp: !!this.globalParams.allowHttp });
   }
 
-  get vaultsContract(): Contract {
+  get contract(): Contract {
     return new Contract(this.globalParams.contractId);
   }
 
@@ -60,7 +53,7 @@ export class VaultsContract {
         fee: this.globalParams.defaultFee,
         networkPassphrase: this.globalParams.network,
       })
-        .addOperation(this.vaultsContract.call('calculate_deposit_ratio', currencyRate, collateral, debt))
+        .addOperation(this.contract.call('calculate_deposit_ratio', currencyRate, collateral, debt))
         .setTimeout(210)
         .build();
 
@@ -84,11 +77,7 @@ export class VaultsContract {
     collateralAmount: u128;
     denomination: Denomination;
     memo?: Memo;
-  }): Promise<{
-    transactionXDR: string;
-    preparedTransactionXDR: string;
-    simulated: SorobanRpc.SimulateTransactionSuccessResponse;
-  }> {
+  }): Promise<DefaultContractTransactionGenerationResponse> {
     const prevKey = await this.findPrevVaultKey({
       account: new Address(params.caller),
       denomination: params.denomination,
@@ -109,8 +98,8 @@ export class VaultsContract {
     })
       .setTimeout(0)
       .addOperation(
-        this.vaultsContract.call(
-          FxDAOContractMethods.new_vault,
+        this.contract.call(
+          FxDAOVaultsContractMethods.new_vault,
           prev_key,
           caller,
           initial_debt,
@@ -123,7 +112,7 @@ export class VaultsContract {
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
@@ -137,29 +126,25 @@ export class VaultsContract {
     amount: u128;
     denomination: Denomination;
     memo?: Memo;
-  }): Promise<{
-    transactionXDR: string;
-    preparedTransactionXDR: string;
-    simulated: SorobanRpc.SimulateTransactionSuccessResponse;
-  }> {
-    const currentVault: Vault = await this.getVault({
+  }): Promise<DefaultContractTransactionGenerationResponse> {
+    const currentVault: VaultsTypes['Vault'] = await this.getVault({
       denomination: params.denomination,
       user: params.caller,
     });
 
-    const prevKey: OptionalVaultKey = await this.findPrevVaultKey({
+    const prevKey: VaultsTypes['OptionalVaultKey'] = await this.findPrevVaultKey({
       account: new Address(params.caller),
       denomination: currentVault.denomination,
       targetIndex: currentVault.index,
     });
 
-    const vaultKey: VaultKey = {
+    const vaultKey: VaultsTypes['VaultKey'] = {
       account: currentVault.account,
       denomination: currentVault.denomination,
       index: currentVault.index,
     };
 
-    const updatedVault: Vault = {
+    const updatedVault: VaultsTypes['Vault'] = {
       account: currentVault.account,
       denomination: currentVault.denomination,
       index: currentVault.index,
@@ -200,7 +185,7 @@ export class VaultsContract {
         throw new Error(`Operation type "${params.operationType}" is not supported`);
     }
 
-    let newPrevKey: OptionalVaultKey;
+    let newPrevKey: VaultsTypes['OptionalVaultKey'];
     if (updatedVault.index === 0n) {
       newPrevKey = ['None'];
     } else {
@@ -208,8 +193,6 @@ export class VaultsContract {
         account: new Address(params.caller),
         denomination: updatedVault.denomination,
         targetIndex: updatedVault.index,
-        ignorePrevVault: true,
-        newPrevKey: true,
       });
     }
 
@@ -237,14 +220,14 @@ export class VaultsContract {
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
     })
-      .addOperation(this.vaultsContract.call(params.operationType, prev_key, vault_key, new_prev_key, amount))
+      .addOperation(this.contract.call(params.operationType, prev_key, vault_key, new_prev_key, amount))
       .setTimeout(0)
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
@@ -252,11 +235,11 @@ export class VaultsContract {
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
 
-  async redeem(params: { caller: string; denomination: Denomination; memo?: Memo }): Promise<{
-    transactionXDR: string;
-    preparedTransactionXDR: string;
-    simulated: SorobanRpc.SimulateTransactionSuccessResponse;
-  }> {
+  async redeem(params: {
+    caller: string;
+    denomination: Denomination;
+    memo?: Memo;
+  }): Promise<DefaultContractTransactionGenerationResponse> {
     const account = await this.server.getAccount(params.caller);
     const caller: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
     const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
@@ -267,13 +250,13 @@ export class VaultsContract {
       memo: params.memo,
     })
       .setTimeout(0)
-      .addOperation(this.vaultsContract.call(FxDAOContractMethods.redeem, caller, denomination))
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.redeem, caller, denomination))
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
@@ -281,11 +264,12 @@ export class VaultsContract {
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
 
-  async liquidate(params: { caller: string; denomination: Denomination; totalVaults: number; memo?: Memo }): Promise<{
-    transactionXDR: string;
-    preparedTransactionXDR: string;
-    simulated: SorobanRpc.SimulateTransactionSuccessResponse;
-  }> {
+  async liquidate(params: {
+    caller: string;
+    denomination: Denomination;
+    totalVaults: number;
+    memo?: Memo;
+  }): Promise<DefaultContractTransactionGenerationResponse> {
     const account = await this.server.getAccount(params.caller);
     const liquidator: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
     const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
@@ -298,14 +282,14 @@ export class VaultsContract {
     })
       .setTimeout(0)
       .addOperation(
-        this.vaultsContract.call(FxDAOContractMethods.liquidate, liquidator, denomination, total_vaults_to_liquidate)
+        this.contract.call(FxDAOVaultsContractMethods.liquidate, liquidator, denomination, total_vaults_to_liquidate)
       )
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
@@ -315,21 +299,21 @@ export class VaultsContract {
 
   // --- Pure View functions
 
-  async getVaultsInfo(params: { denomination: Denomination }): Promise<VaultsInfo> {
+  async getVaultsInfo(params: { denomination: Denomination }): Promise<VaultsTypes['VaultsInfo']> {
     const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
 
     const tx = new TransactionBuilder(new Account(this.globalParams.simulationAccount, '0'), {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
     })
-      .addOperation(this.vaultsContract.call(FxDAOContractMethods.get_vaults_info, denomination))
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_vaults_info, denomination))
       .setTimeout(0)
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
@@ -339,32 +323,52 @@ export class VaultsContract {
     account: Address;
     targetIndex: u128;
     denomination: Denomination;
-    ignorePrevVault?: boolean;
-    newPrevKey?: boolean;
-  }): Promise<OptionalVaultKey> {
-    let found = false;
+  }): Promise<VaultsTypes['OptionalVaultKey']> {
+    const vaultsInfo: VaultsTypes['VaultsInfo'] = await this.getVaultsInfo({ denomination: params.denomination });
+    let prevKeyValue: VaultsTypes['OptionalVaultKey'];
 
-    let vaultsInfo: VaultsInfo;
-    let prevKeyValue: OptionalVaultKey;
+    /**
+     * There are four cases when using the lowest key:
+     * - If the lowest key is "None" it means there is no Vault created
+     * - If the index of the lowest key is higher than the index we are looking for it means this new vault will be the new lowest key
+     * - If the lowest key is owned by the account and it has the same index, we return none since this account if going to still be the lowest key
+     */
+    if (
+      vaultsInfo.lowest_key[0] === 'None' ||
+      vaultsInfo.lowest_key[1].index > params.targetIndex ||
+      (vaultsInfo.lowest_key[1].index === params.targetIndex &&
+        vaultsInfo.lowest_key[1].account === params.account.toString())
+    ) {
+      return ['None'];
+    }
 
-    if (!params.ignorePrevVault) {
-      vaultsInfo = await this.getVaultsInfo({ denomination: params.denomination });
-      prevKeyValue = vaultsInfo.lowest_key;
-
-      if (
-        prevKeyValue[0] === 'None' ||
-        prevKeyValue[1].account.toString() === params.account.toString() ||
-        prevKeyValue[1].index >= params.targetIndex
-      ) {
-        prevKeyValue = ['None'];
-        return prevKeyValue;
+    if (vaultsInfo.lowest_key[1].account !== params.account.toString()) {
+      if (vaultsInfo.lowest_key[1].index === params.targetIndex) {
+        return ['None'];
       }
+
+      const lowestVault: VaultsTypes['Vault'] = await this.getVault({
+        user: vaultsInfo.lowest_key[1].account,
+        denomination: params.denomination,
+      });
+
+      /**
+       * If lowest key has an existing "next_key" value, we check these cases:
+       * - if the next key is "None", we return the current lowest as the prevKey
+       * - If the next keu index is higher than the target we also return the lowest key
+       */
+      if (lowestVault.next_key[0] === 'None' || lowestVault.next_key[1].index >= params.targetIndex) {
+        return vaultsInfo.lowest_key;
+      }
+
+      prevKeyValue = vaultsInfo.lowest_key;
     } else {
       prevKeyValue = ['None'];
     }
 
+    let found = false;
     while (!found) {
-      const vaults: Vault[] = await this.getVaults({
+      const vaults: Array<VaultsTypes['Vault']> = await this.getVaults({
         onlyToLiquidate: false,
         denomination: params.denomination,
         prevKey: prevKeyValue,
@@ -377,13 +381,13 @@ export class VaultsContract {
       }
 
       for (const vault of vaults) {
-        if (vault.index >= params.targetIndex && prevKeyValue[0] !== 'None') {
-          found = true;
-          break;
+        // This shouldn't happen but just in case
+        if (prevKeyValue[0] === 'Some' && prevKeyValue[1].account === vault.account) {
+          continue;
         }
 
         // If the vault is the same as ours, we ignore it because it can't be a prev vault
-        if (vault.next_key[0] === 'Some' && vault.account.toString() === params.account.toString()) {
+        if (vault.account.toString() === params.account.toString()) {
           continue;
         }
 
@@ -396,28 +400,26 @@ export class VaultsContract {
           },
         ];
 
-        /* If is the new key, there are cases where the prev vault is the same vault we are removing even doe there are more vaults
-         *
-         */
         if (
-          params.newPrevKey &&
-          vault.next_key[0] === 'Some' &&
-          vault.next_key[1].account.toString() === params.account.toString()
+          vault.next_key[0] === 'None' ||
+          vault.next_key[1].index >= params.targetIndex ||
+          vault.next_key[1].account === params.account.toString()
         ) {
-          continue;
-        }
-
-        if (vault.next_key[0] === 'None' || vault.next_key[1].index >= params.targetIndex) {
           found = true;
           break;
         }
+      }
+
+      // If the number of vaults we got is lower than those we requested is because are no more options there.
+      if (vaults.length < 15) {
+        found = true;
       }
     }
 
     return prevKeyValue;
   }
 
-  async getVault(params: { user: string; denomination: Denomination }): Promise<Vault> {
+  async getVault(params: { user: string; denomination: Denomination }): Promise<VaultsTypes['Vault']> {
     const user: xdr.ScVal = nativeToScVal(params.user, { type: 'address' });
     const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
 
@@ -425,26 +427,26 @@ export class VaultsContract {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
     })
-      .addOperation(this.vaultsContract.call(FxDAOContractMethods.get_vault, user, denomination))
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_vault, user, denomination))
       .setTimeout(0)
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
   }
 
   async getVaults(params: {
-    prevKey?: OptionalVaultKey;
+    prevKey?: VaultsTypes['OptionalVaultKey'];
     denomination: Denomination;
     total: u32;
     onlyToLiquidate: boolean;
     memo?: Memo;
-  }): Promise<Vault[]> {
+  }): Promise<Array<VaultsTypes['Vault']>> {
     const prev_key: xdr.ScVal = generateOptionalVaultKeyScVal(params.prevKey || ['None']);
     const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
     const total: xdr.ScVal = nativeToScVal(params.total, { type: 'u32' });
@@ -458,16 +460,22 @@ export class VaultsContract {
     })
       .setTimeout(0)
       .addOperation(
-        this.vaultsContract.call(FxDAOContractMethods.get_vaults, prev_key, denomination, total, only_to_liquidate)
+        this.contract.call(FxDAOVaultsContractMethods.get_vaults, prev_key, denomination, total, only_to_liquidate)
       )
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
     if (isSimulationError(simulated)) {
-      throw new Error(simulated.error);
+      throw parseError(ParseErrorType.vault, simulated);
     }
 
     return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
   }
+}
+
+export enum FindPrevVaultKeyType {
+  new_vault,
+  update_vault,
+  remove_vault,
 }
