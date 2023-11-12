@@ -113,6 +113,30 @@ export class SafetyPoolContract {
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
 
+  async liquidate(params: { caller: address; memo?: Memo }): Promise<DefaultContractTransactionGenerationResponse> {
+    const account: Account = await this.server.getAccount(params.caller);
+    const caller: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
+
+    const tx = new TransactionBuilder(account, {
+      fee: this.globalParams.defaultFee,
+      networkPassphrase: this.globalParams.network,
+      memo: params.memo,
+    })
+      .setTimeout(0)
+      .addOperation(this.contract.call(FxDAOSafetyPoolContractMethods.liquidate, caller))
+      .build();
+
+    const simulated = await this.server.simulateTransaction(tx);
+
+    if (isSimulationError(simulated)) {
+      throw parseError(ParseErrorType.safety_pool, simulated);
+    }
+
+    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+
+    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+  }
+
   // --- Pure View functions
 
   async getCoreState(): Promise<SafetyPoolTypes['CoreStateType']> {

@@ -42,33 +42,61 @@ export class VaultsContract {
   }
 
   async calculateDepositRatio(params: { currencyRate: string; collateral: string; debt: string }): Promise<bigint> {
-    {
-      const currencyRate: xdr.ScVal = nativeToScVal(params.currencyRate, { type: 'u128' });
-      const collateral: xdr.ScVal = nativeToScVal(params.collateral, { type: 'u128' });
-      const debt: xdr.ScVal = nativeToScVal(params.debt, { type: 'u128' });
+    const currencyRate: xdr.ScVal = nativeToScVal(params.currencyRate, { type: 'u128' });
+    const collateral: xdr.ScVal = nativeToScVal(params.collateral, { type: 'u128' });
+    const debt: xdr.ScVal = nativeToScVal(params.debt, { type: 'u128' });
 
-      const account = new Account(this.globalParams.simulationAccount, '0');
+    const account = new Account(this.globalParams.simulationAccount, '0');
 
-      const tx = new TransactionBuilder(account, {
-        fee: this.globalParams.defaultFee,
-        networkPassphrase: this.globalParams.network,
-      })
-        .addOperation(this.contract.call('calculate_deposit_ratio', currencyRate, collateral, debt))
-        .setTimeout(210)
-        .build();
+    const tx = new TransactionBuilder(account, {
+      fee: this.globalParams.defaultFee,
+      networkPassphrase: this.globalParams.network,
+    })
+      .addOperation(this.contract.call('calculate_deposit_ratio', currencyRate, collateral, debt))
+      .setTimeout(210)
+      .build();
 
-      const responseValue: xdr.ScVal = await this.server.simulateTransaction(tx).then(response => {
-        if ('error' in response && response.error) throw response.error;
+    const responseValue: xdr.ScVal = await this.server.simulateTransaction(tx).then(response => {
+      if ('error' in response && response.error) throw response.error;
 
-        return xdr.ScVal.fromXDR(
-          (
-            (response as SorobanRpc.SimulateTransactionSuccessResponse).result as SorobanRpc.SimulateHostFunctionResult
-          ).retval.toXDR()
-        );
-      });
+      return xdr.ScVal.fromXDR(
+        (
+          (response as SorobanRpc.SimulateTransactionSuccessResponse).result as SorobanRpc.SimulateHostFunctionResult
+        ).retval.toXDR()
+      );
+    });
 
-      return scValToBigInt(responseValue);
+    return scValToBigInt(responseValue);
+  }
+
+  async setPriceRate(params: {
+    sourceAccount: string;
+    denomination: Denomination;
+    rate: u128;
+    memo?: Memo;
+  }): Promise<DefaultContractTransactionGenerationResponse> {
+    const account = await this.server.getAccount(params.sourceAccount);
+    const rate: xdr.ScVal = nativeToScVal(params.rate, { type: 'u128' });
+    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
+
+    const tx = new TransactionBuilder(account, {
+      fee: this.globalParams.defaultFee,
+      networkPassphrase: this.globalParams.network,
+      memo: params.memo,
+    })
+      .setTimeout(0)
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.set_currency_rate, denomination, rate))
+      .build();
+
+    const simulated = await this.server.simulateTransaction(tx);
+
+    if (isSimulationError(simulated)) {
+      throw parseError(ParseErrorType.vault, simulated);
     }
+
+    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+
+    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
 
   async newVault(params: {
@@ -270,7 +298,7 @@ export class VaultsContract {
     totalVaults: number;
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
-    const account = await this.server.getAccount(params.caller);
+    const account: Account = await this.server.getAccount(params.caller);
     const liquidator: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
     const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
     const total_vaults_to_liquidate: xdr.ScVal = nativeToScVal(params.totalVaults, { type: 'u32' });
@@ -427,7 +455,7 @@ export class VaultsContract {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
     })
-      .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_vault, user, denomination))
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.set_currency_rate, user, denomination))
       .setTimeout(0)
       .build();
 

@@ -33,6 +33,7 @@ export enum FxDAOContracts {
 }
 
 export enum FxDAOVaultsContractMethods {
+  set_currency_rate = 'set_currency_rate',
   get_vault = 'get_vault',
   get_vaults = 'get_vaults',
   new_vault = 'new_vault',
@@ -48,6 +49,7 @@ export enum FxDAOSafetyPoolContractMethods {
   get_deposit = 'get_deposit',
   withdraw = 'withdraw',
   withdraw_col = 'withdraw_col',
+  liquidate = 'liquidate',
 }
 
 export interface DefaultContractParams {
