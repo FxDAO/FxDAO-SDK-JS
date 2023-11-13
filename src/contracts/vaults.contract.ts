@@ -455,7 +455,7 @@ export class VaultsContract {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
     })
-      .addOperation(this.contract.call(FxDAOVaultsContractMethods.set_currency_rate, user, denomination))
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_vault, user, denomination))
       .setTimeout(0)
       .build();
 
