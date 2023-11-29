@@ -56,6 +56,6 @@ export interface DefaultContractParams {
 export interface DefaultContractTransactionGenerationResponse {
     transactionXDR: string;
     preparedTransactionXDR: string;
-    simulated: SorobanRpc.SimulateTransactionSuccessResponse;
+    simulated: SorobanRpc.SimulateTransactionSuccessResponse | SorobanRpc.SimulateTransactionRestoreResponse;
 }
 //# sourceMappingURL=index.d.ts.map
