@@ -1,4 +1,5 @@
-import { Address, Contract, Memo, Server } from 'soroban-client';
+import { Address, Contract, Memo } from 'stellar-sdk';
+import { Server } from 'stellar-sdk/lib/soroban';
 import { DefaultContractParams, DefaultContractTransactionGenerationResponse, Denomination, u128, u32, UpdateVaultOperationType } from '../interfaces';
 import { VaultsTypes } from '../interfaces/vaults';
 export declare class VaultsContract {

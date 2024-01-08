@@ -1,17 +1,15 @@
 import {
   Account,
   Address,
-  assembleTransaction,
   Contract,
   Memo,
   nativeToScVal,
   scValToBigInt,
   scValToNative,
-  Server,
-  SorobanRpc,
   TransactionBuilder,
   xdr,
-} from 'soroban-client';
+} from 'stellar-sdk';
+import { Api, Server, assembleTransaction } from 'stellar-sdk/lib/soroban';
 
 import {
   DefaultContractParams,
@@ -24,7 +22,6 @@ import {
 } from '../interfaces';
 import { calculateVaultIndex, generateOptionalVaultKeyScVal, parseError, ParseErrorType } from '../utils';
 import { VaultsTypes } from '../interfaces/vaults';
-import isSimulationError = SorobanRpc.isSimulationError;
 
 export class VaultsContract {
   private readonly globalParams: DefaultContractParams;
@@ -60,9 +57,7 @@ export class VaultsContract {
       if ('error' in response && response.error) throw response.error;
 
       return xdr.ScVal.fromXDR(
-        (
-          (response as SorobanRpc.SimulateTransactionSuccessResponse).result as SorobanRpc.SimulateHostFunctionResult
-        ).retval.toXDR()
+        ((response as Api.SimulateTransactionSuccessResponse).result as Api.SimulateHostFunctionResult).retval.toXDR()
       );
     });
 
@@ -90,11 +85,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -139,11 +134,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -254,11 +249,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -283,11 +278,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -316,11 +311,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -340,11 +335,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
+    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
   }
 
   async findPrevVaultKey(params: {
@@ -461,11 +456,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
+    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
   }
 
   async getVaults(params: {
@@ -494,11 +489,11 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
+    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
   }
 }
 

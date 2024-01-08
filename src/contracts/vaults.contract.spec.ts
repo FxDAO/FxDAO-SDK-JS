@@ -1,6 +1,6 @@
 import { FindPrevVaultKeyType, VaultsContract } from './vaults.contract';
-import { Address, Keypair, Memo, Networks } from 'soroban-client';
-import { Denomination, u128, u32 } from '../interfaces';
+import { Address, Keypair, Networks } from 'stellar-sdk';
+import { Denomination, u32 } from '../interfaces';
 import { VaultsTypes } from '../interfaces/vaults';
 
 const fakeContract = 'CBPR5TSRYW3ONNKXU6QVURRXC5HMYUZEAXEGDKQ2BYIQN4XYKKYFP6ZD';

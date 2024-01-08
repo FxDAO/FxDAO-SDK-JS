@@ -1,4 +1,5 @@
-import { nativeToScVal, scValToNative, SorobanRpc, xdr } from 'soroban-client';
+import { nativeToScVal, scValToNative, xdr } from 'stellar-sdk';
+import { Api } from 'stellar-sdk/lib/soroban';
 import { VaultsTypes } from './interfaces/vaults';
 import { VaultsErrors } from './errors/vaults';
 import { SafetyPoolErrors } from './errors/satefy-pool';
@@ -42,7 +43,7 @@ export enum ParseErrorType {
 
 export function parseError(
   type: ParseErrorType,
-  response: SorobanRpc.SimulateTransactionErrorResponse
+  response: Api.SimulateTransactionErrorResponse
 ): {
   error: number;
   message: string;
@@ -76,7 +77,7 @@ export function parseError(
   };
 }
 
-export function errorCodeFromSimulated(response: SorobanRpc.SimulateTransactionErrorResponse): number | -1 {
+export function errorCodeFromSimulated(response: Api.SimulateTransactionErrorResponse): number | -1 {
   let errorCode: number;
   try {
     const errorCodeVal = (response as any).events

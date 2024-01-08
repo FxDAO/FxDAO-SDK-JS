@@ -1,4 +1,4 @@
-import { address, Denomination, FxDAOVaultsContractMethods, u128, u64, UpdateVaultOperationType } from './index';
+import { address, Denomination, u128, u64 } from './index';
 
 interface CoreStateType {
   admin: address;

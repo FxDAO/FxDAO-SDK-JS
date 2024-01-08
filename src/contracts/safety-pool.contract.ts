@@ -5,22 +5,10 @@ import {
   FxDAOSafetyPoolContractMethods,
   u128,
 } from '../interfaces';
-import {
-  Account,
-  Address,
-  assembleTransaction,
-  Contract,
-  Memo,
-  nativeToScVal,
-  scValToNative,
-  Server,
-  SorobanRpc,
-  TransactionBuilder,
-  xdr,
-} from 'soroban-client';
+import { Account, Address, Contract, Memo, nativeToScVal, scValToNative, TransactionBuilder, xdr } from 'stellar-sdk';
+import { Server, Api, assembleTransaction } from 'stellar-sdk/lib/soroban';
 import { SafetyPoolTypes } from '../interfaces/safety-pool';
 import { parseError, ParseErrorType } from '../utils';
-import isSimulationError = SorobanRpc.isSimulationError;
 
 export class SafetyPoolContract {
   constructor(private readonly globalParams: DefaultContractParams) {}
@@ -53,11 +41,11 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -77,11 +65,11 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -104,11 +92,11 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -128,11 +116,11 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    const prepared = assembleTransaction(tx, this.globalParams.network, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }
@@ -150,11 +138,11 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
+    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
   }
 
   async getCoreStats(): Promise<SafetyPoolTypes['CoreStatsType']> {
@@ -168,11 +156,11 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
+    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
   }
 
   async getDeposit(caller: address): Promise<SafetyPoolTypes['Deposit']> {
@@ -188,10 +176,10 @@ export class SafetyPoolContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    return scValToNative((simulated.result as SorobanRpc.SimulateHostFunctionResult).retval);
+    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
   }
 }

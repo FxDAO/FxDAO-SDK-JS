@@ -1,5 +1,6 @@
 import { address, DefaultContractParams, DefaultContractTransactionGenerationResponse, u128 } from '../interfaces';
-import { Contract, Memo, Server } from 'soroban-client';
+import { Contract, Memo } from 'stellar-sdk';
+import { Server } from 'stellar-sdk/lib/soroban';
 import { SafetyPoolTypes } from '../interfaces/safety-pool';
 export declare class SafetyPoolContract {
     private readonly globalParams;

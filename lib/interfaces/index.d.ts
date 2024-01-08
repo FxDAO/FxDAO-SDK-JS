@@ -1,4 +1,5 @@
-import { Networks, SorobanRpc } from 'soroban-client';
+import { Networks } from 'stellar-sdk';
+import { Api } from 'stellar-sdk/lib/soroban';
 export type u32 = number;
 export type i32 = number;
 export type u64 = bigint;
@@ -56,6 +57,6 @@ export interface DefaultContractParams {
 export interface DefaultContractTransactionGenerationResponse {
     transactionXDR: string;
     preparedTransactionXDR: string;
-    simulated: SorobanRpc.SimulateTransactionSuccessResponse | SorobanRpc.SimulateTransactionRestoreResponse;
+    simulated: Api.SimulateTransactionSuccessResponse | Api.SimulateTransactionRestoreResponse;
 }
 //# sourceMappingURL=index.d.ts.map
