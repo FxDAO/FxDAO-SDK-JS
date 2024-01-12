@@ -1,5 +1,5 @@
-import { Networks } from 'stellar-sdk';
-import { Api } from 'stellar-sdk/lib/soroban';
+import { Networks } from '@stellar/stellar-sdk';
+import { Api } from '@stellar/stellar-sdk/lib/soroban';
 
 export type u32 = number;
 export type i32 = number;

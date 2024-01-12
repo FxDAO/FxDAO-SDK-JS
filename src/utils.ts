@@ -1,5 +1,5 @@
-import { nativeToScVal, scValToNative, xdr } from 'stellar-sdk';
-import { Api } from 'stellar-sdk/lib/soroban';
+import { nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { Api } from '@stellar/stellar-sdk/lib/soroban';
 import { VaultsTypes } from './interfaces/vaults';
 import { VaultsErrors } from './errors/vaults';
 import { SafetyPoolErrors } from './errors/satefy-pool';

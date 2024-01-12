@@ -5,8 +5,17 @@ import {
   FxDAOSafetyPoolContractMethods,
   u128,
 } from '../interfaces';
-import { Account, Address, Contract, Memo, nativeToScVal, scValToNative, TransactionBuilder, xdr } from 'stellar-sdk';
-import { Server, Api, assembleTransaction } from 'stellar-sdk/lib/soroban';
+import {
+  Account,
+  Address,
+  Contract,
+  Memo,
+  nativeToScVal,
+  scValToNative,
+  TransactionBuilder,
+  xdr,
+} from '@stellar/stellar-sdk';
+import { Server, Api, assembleTransaction } from '@stellar/stellar-sdk/lib/soroban';
 import { SafetyPoolTypes } from '../interfaces/safety-pool';
 import { parseError, ParseErrorType } from '../utils';
 

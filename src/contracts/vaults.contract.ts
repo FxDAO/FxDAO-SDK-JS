@@ -8,8 +8,9 @@ import {
   scValToNative,
   TransactionBuilder,
   xdr,
-} from 'stellar-sdk';
-import { Api, Server, assembleTransaction } from 'stellar-sdk/lib/soroban';
+  Transaction,
+} from '@stellar/stellar-sdk';
+import { Api, Server, assembleTransaction } from '@stellar/stellar-sdk/lib/soroban';
 
 import {
   DefaultContractParams,
@@ -138,7 +139,7 @@ export class VaultsContract {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    const prepared = assembleTransaction(tx, simulated).build();
+    const prepared = assembleTransaction(new Transaction(tx.toXDR(), this.globalParams.network), simulated).build();
 
     return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
   }

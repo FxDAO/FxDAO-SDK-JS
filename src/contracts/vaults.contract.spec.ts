@@ -1,5 +1,5 @@
 import { FindPrevVaultKeyType, VaultsContract } from './vaults.contract';
-import { Address, Keypair, Networks } from 'stellar-sdk';
+import { Address, Keypair, Networks } from '@stellar/stellar-sdk';
 import { Denomination, u32 } from '../interfaces';
 import { VaultsTypes } from '../interfaces/vaults';
 
