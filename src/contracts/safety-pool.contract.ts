@@ -15,7 +15,7 @@ import {
   TransactionBuilder,
   xdr,
 } from '@stellar/stellar-sdk';
-import { Server, Api, assembleTransaction } from '@stellar/stellar-sdk/lib/soroban';
+import { Server, Api } from '@stellar/stellar-sdk/lib/soroban';
 import { SafetyPoolTypes } from '../interfaces/safety-pool';
 import { parseError, ParseErrorType } from '../utils';
 
@@ -48,15 +48,7 @@ export class SafetyPoolContract {
       .addOperation(this.contract.call(FxDAOSafetyPoolContractMethods.deposit, caller, amount))
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.safety_pool, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async withdraw(params: { caller: address; memo?: Memo }): Promise<DefaultContractTransactionGenerationResponse> {
@@ -72,15 +64,7 @@ export class SafetyPoolContract {
       .addOperation(this.contract.call(FxDAOSafetyPoolContractMethods.withdraw, caller))
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.safety_pool, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async withdrawReward(params: {
@@ -99,15 +83,7 @@ export class SafetyPoolContract {
       .addOperation(this.contract.call(FxDAOSafetyPoolContractMethods.withdraw_col, caller))
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.safety_pool, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async liquidate(params: { caller: address; memo?: Memo }): Promise<DefaultContractTransactionGenerationResponse> {
@@ -123,15 +99,7 @@ export class SafetyPoolContract {
       .addOperation(this.contract.call(FxDAOSafetyPoolContractMethods.liquidate, caller))
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.safety_pool, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   // --- Pure View functions
@@ -151,7 +119,9 @@ export class SafetyPoolContract {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
+    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
+    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return scValToNative(scVal);
   }
 
   async getCoreStats(): Promise<SafetyPoolTypes['CoreStatsType']> {
@@ -169,7 +139,9 @@ export class SafetyPoolContract {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
+    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
+    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return scValToNative(scVal);
   }
 
   async getDeposit(caller: address): Promise<SafetyPoolTypes['Deposit']> {
@@ -189,6 +161,8 @@ export class SafetyPoolContract {
       throw parseError(ParseErrorType.safety_pool, simulated);
     }
 
-    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
+    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
+    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return scValToNative(scVal);
   }
 }

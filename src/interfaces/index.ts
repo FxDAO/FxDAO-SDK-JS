@@ -68,6 +68,7 @@ export interface DefaultContractParams {
 
 export interface DefaultContractTransactionGenerationResponse {
   transactionXDR: string;
-  preparedTransactionXDR: string;
-  simulated: Api.SimulateTransactionSuccessResponse | Api.SimulateTransactionRestoreResponse;
+  // Check later if we can come back to doing the simulation inside the SDK
+  // preparedTransactionXDR: string;
+  // simulated: Api.SimulateTransactionSuccessResponse | Api.SimulateTransactionRestoreResponse;
 }

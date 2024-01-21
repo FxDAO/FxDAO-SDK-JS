@@ -8,9 +8,8 @@ import {
   scValToNative,
   TransactionBuilder,
   xdr,
-  Transaction,
 } from '@stellar/stellar-sdk';
-import { Api, Server, assembleTransaction } from '@stellar/stellar-sdk/lib/soroban';
+import { Api, Server } from '@stellar/stellar-sdk/lib/soroban';
 
 import {
   DefaultContractParams,
@@ -84,15 +83,7 @@ export class VaultsContract {
       .addOperation(this.contract.call(FxDAOVaultsContractMethods.set_currency_rate, denomination, rate))
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.vault, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async newVault(params: {
@@ -133,15 +124,7 @@ export class VaultsContract {
       )
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.vault, simulated);
-    }
-
-    const prepared = assembleTransaction(new Transaction(tx.toXDR(), this.globalParams.network), simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async updateVault(params: {
@@ -248,15 +231,7 @@ export class VaultsContract {
       .setTimeout(0)
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.vault, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async redeem(params: {
@@ -277,15 +252,7 @@ export class VaultsContract {
       .addOperation(this.contract.call(FxDAOVaultsContractMethods.redeem, caller, denomination))
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.vault, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   async liquidate(params: {
@@ -310,15 +277,7 @@ export class VaultsContract {
       )
       .build();
 
-    const simulated = await this.server.simulateTransaction(tx);
-
-    if (Api.isSimulationError(simulated)) {
-      throw parseError(ParseErrorType.vault, simulated);
-    }
-
-    const prepared = assembleTransaction(tx, simulated).build();
-
-    return { transactionXDR: tx.toXDR(), simulated, preparedTransactionXDR: prepared.toXDR() };
+    return { transactionXDR: tx.toXDR() };
   }
 
   // --- Pure View functions
@@ -340,7 +299,9 @@ export class VaultsContract {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
+    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
+    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return scValToNative(scVal);
   }
 
   async findPrevVaultKey(params: {
@@ -461,7 +422,9 @@ export class VaultsContract {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
+    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
+    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return scValToNative(scVal);
   }
 
   async getVaults(params: {
@@ -494,7 +457,10 @@ export class VaultsContract {
       throw parseError(ParseErrorType.vault, simulated);
     }
 
-    return scValToNative((simulated.result as Api.SimulateHostFunctionResult).retval);
+    // We do this in order to avoid wierd errors with libraries sharing the Stellar SDK
+    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
+    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return scValToNative(scVal);
   }
 }
 
