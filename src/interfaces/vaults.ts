@@ -15,8 +15,6 @@ interface CurrencyType {
   active: boolean;
   contract: address;
   denomination: Denomination;
-  last_update: u64;
-  rate: u128;
 }
 
 type CurrenciesDataKeys = ['Currency', Denomination];
