@@ -13,7 +13,7 @@ function getVaultsInfoMock(
   total_vaults: bigint = 0n
 ): VaultsTypes['VaultsInfo'] {
   return {
-    denomination: Denomination.usd,
+    denomination: Denomination.USD,
     lowest_key,
     min_col_rate: 11000000n,
     min_debt_creation: 1000000000n,
@@ -58,7 +58,7 @@ describe('Test VaultsContract class', () => {
         (all: { vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }[], currentVaultIndex: bigint) => {
           const vaultKey: VaultsTypes['VaultKey'] = {
             account: Keypair.random().publicKey(),
-            denomination: Denomination.usd,
+            denomination: Denomination.USD,
             index: currentVaultIndex,
           };
           const vault: VaultsTypes['Vault'] = {
@@ -88,7 +88,7 @@ describe('Test VaultsContract class', () => {
 
       const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
         account: new Address(fakeSimulationAccount),
-        denomination: Denomination.usd,
+        denomination: Denomination.USD,
         targetIndex: 1000000n,
       });
 
@@ -98,7 +98,7 @@ describe('Test VaultsContract class', () => {
     describe('One vault is created and we are creating a new Vault', () => {
       const testVaultKey: VaultsTypes['VaultKey'] = {
         account: Keypair.random().publicKey(),
-        denomination: Denomination.usd,
+        denomination: Denomination.USD,
         index: testIndex,
       };
       const createdVault: VaultsTypes['Vault'] = {
@@ -111,7 +111,7 @@ describe('Test VaultsContract class', () => {
       const params = {
         type: FindPrevVaultKeyType.new_vault,
         account: new Address(Keypair.random().publicKey()),
-        denomination: Denomination.usd,
+        denomination: Denomination.USD,
       };
 
       beforeEach(() => {
@@ -172,7 +172,7 @@ describe('Test VaultsContract class', () => {
       const params = {
         type: FindPrevVaultKeyType.new_vault,
         account: new Address(Keypair.random().publicKey()),
-        denomination: Denomination.usd,
+        denomination: Denomination.USD,
       };
 
       test('New vault has the lowest index', async () => {
@@ -261,7 +261,7 @@ describe('Test VaultsContract class', () => {
       describe('One vault is created and we are updating the vault', () => {
         const testVaultKey: VaultsTypes['VaultKey'] = {
           account: Keypair.random().publicKey(),
-          denomination: Denomination.usd,
+          denomination: Denomination.USD,
           index: testIndex,
         };
 
@@ -275,7 +275,7 @@ describe('Test VaultsContract class', () => {
         const params = {
           type: FindPrevVaultKeyType.update_vault,
           account: new Address(testVaultKey.account),
-          denomination: Denomination.usd,
+          denomination: Denomination.USD,
         };
 
         beforeEach(() => {
@@ -339,7 +339,7 @@ describe('Test VaultsContract class', () => {
           const params = {
             type: FindPrevVaultKeyType.update_vault,
             account: new Address(vaultToUpdate.vault.account),
-            denomination: Denomination.usd,
+            denomination: Denomination.USD,
           };
 
           const prevKey: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
@@ -364,7 +364,7 @@ describe('Test VaultsContract class', () => {
           const params = {
             type: FindPrevVaultKeyType.update_vault,
             account: new Address(vaultToUpdate.vault.account),
-            denomination: Denomination.usd,
+            denomination: Denomination.USD,
           };
 
           const prevKey: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
