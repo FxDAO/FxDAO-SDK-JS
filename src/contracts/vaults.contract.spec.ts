@@ -1,5 +1,17 @@
 import { FindPrevVaultKeyType, VaultsContract } from './vaults.contract';
-import { Address, Keypair, Networks } from '@stellar/stellar-sdk';
+import {
+  Account,
+  Address,
+  Contract,
+  Keypair,
+  nativeToScVal,
+  Networks,
+  scValToBigInt,
+  scValToNative,
+  SorobanRpc,
+  TransactionBuilder,
+  xdr,
+} from '@stellar/stellar-sdk';
 import { Denomination, u32 } from '../interfaces';
 import { VaultsTypes } from '../interfaces/vaults';
 
@@ -39,9 +51,53 @@ async function getVaultsMock(params: {
   return params.initialVaults.slice(i === -1 ? i + 1 : 0);
 }
 
+function createTestVaults(
+  indexes: bigint[]
+): Array<{ vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }> {
+  return indexes
+    .slice()
+    .reverse()
+    .reduce((all: { vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }[], currentVaultIndex: bigint) => {
+      const vaultKey: VaultsTypes['VaultKey'] = {
+        account: Keypair.random().publicKey(),
+        denomination: Denomination.USD,
+        index: currentVaultIndex,
+      };
+      const vault: VaultsTypes['Vault'] = {
+        ...vaultKey,
+        next_key: all[0] ? ['Some', all[0].vaultKey] : ['None'],
+        total_collateral: 0n,
+        total_debt: 0n,
+      };
+      return [{ vaultKey, vault }, ...all];
+    }, []);
+}
+
 describe('Test VaultsContract class', () => {
+  let contract: VaultsContract;
+
   describe('Test all situations where we need to get the prev_key', () => {
-    let contract: VaultsContract;
+    beforeEach(() => {
+      contract = new VaultsContract({
+        stellarSDK: {
+          xdr,
+          TransactionBuilder,
+          scValToNative,
+          scValToBigInt,
+          nativeToScVal,
+          Contract,
+          Address,
+          Account,
+          SorobanRpc,
+        },
+        contractId: fakeContract,
+        defaultFee: '100',
+        network,
+        rpc: fakeRpc,
+        simulationAccount: fakeSimulationAccount,
+      });
+    });
+
     const testIndex: bigint = 25238235n;
     const testIndexes: bigint[] = [
       17564285714n,
@@ -52,35 +108,8 @@ describe('Test VaultsContract class', () => {
       50000000000n,
       60000000000n,
     ];
-    const testVaults: Array<{ vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }> = testIndexes
-      .reverse()
-      .reduce(
-        (all: { vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }[], currentVaultIndex: bigint) => {
-          const vaultKey: VaultsTypes['VaultKey'] = {
-            account: Keypair.random().publicKey(),
-            denomination: Denomination.USD,
-            index: currentVaultIndex,
-          };
-          const vault: VaultsTypes['Vault'] = {
-            ...vaultKey,
-            next_key: all[0] ? ['Some', all[0].vaultKey] : ['None'],
-            total_collateral: 0n,
-            total_debt: 0n,
-          };
-          return [{ vaultKey, vault }, ...all];
-        },
-        []
-      );
-
-    beforeEach(() => {
-      contract = new VaultsContract({
-        contractId: fakeContract,
-        defaultFee: '100',
-        network,
-        rpc: fakeRpc,
-        simulationAccount: fakeSimulationAccount,
-      });
-    });
+    const testVaults: Array<{ vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }> =
+      createTestVaults(testIndexes);
 
     test('No vault is created', async () => {
       jest.spyOn(contract, 'getVaultsInfo').mockImplementation(() => Promise.resolve(getVaultsInfoMock(['None'])));
@@ -382,6 +411,244 @@ describe('Test VaultsContract class', () => {
           expect(newPrevKey).toEqual(['Some', testVaults[0].vaultKey]);
         });
       });
+    });
+  });
+
+  describe('Test real word example of paying the debt', () => {
+    let contract: VaultsContract;
+    const testIndexes: bigint[] = [14962500000n, 14962500000n, 15597272727n, 33310367980n];
+    const testVaults: Array<{ vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }> =
+      createTestVaults(testIndexes);
+
+    beforeEach(() => {
+      contract = new VaultsContract({
+        stellarSDK: {
+          xdr,
+          TransactionBuilder,
+          scValToNative,
+          scValToBigInt,
+          nativeToScVal,
+          Contract,
+          Address,
+          Account,
+          SorobanRpc,
+        },
+        contractId: fakeContract,
+        defaultFee: '100',
+        network,
+        rpc: fakeRpc,
+        simulationAccount: fakeSimulationAccount,
+      });
+
+      jest
+        .spyOn(contract, 'getVaultsInfo')
+        .mockImplementation(() => Promise.resolve(getVaultsInfoMock(['Some', testVaults[0].vaultKey])));
+
+      jest.spyOn(contract, 'getVaults').mockImplementation(async () => testVaults.map(t => t.vault));
+    });
+
+    test('should correctly get the prev_key 1', async () => {
+      const testIndex: bigint = 113172823219n;
+
+      jest.spyOn(contract, 'getVault').mockImplementation(async () => testVaults.slice()[2].vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account: new Address(testVaults[2].vault.account),
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result[1]?.index).toBe(testIndexes[3]);
+    });
+
+    test('should correctly get the prev_key 2', async () => {
+      const testIndex: bigint = 14962400000n;
+
+      jest.spyOn(contract, 'getVault').mockImplementation(async () => testVaults.slice()[0].vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account: new Address(testVaults[0].vault.account),
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result[0]).toBe('None');
+    });
+
+    test('should correctly get the prev_key 3', async () => {
+      const testIndex: bigint = 33310367981n;
+
+      jest.spyOn(contract, 'getVault').mockImplementation(async () => testVaults.slice()[0].vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account: new Address(testVaults[0].vault.account),
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result[1]?.index).toBe(testIndexes[3]);
+    });
+
+    test('should correctly get the prev_key 4', async () => {
+      const testIndex: bigint = 33310367970n;
+
+      jest.spyOn(contract, 'getVault').mockImplementation(async () => testVaults.slice()[0].vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account: new Address(testVaults[0].vault.account),
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result[1]?.index).toBe(testIndexes[2]);
+    });
+
+    test('should correctly get the prev_key 5', async () => {
+      const testIndex: bigint = 14962500000n;
+
+      jest.spyOn(contract, 'getVault').mockImplementation(async () => testVaults.slice()[2].vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account: new Address(testVaults[2].vault.account),
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result[0]).toBe('None');
+    });
+
+    test('should correctly get the prev_key 6', async () => {
+      const testIndex: bigint = 15597272728n;
+
+      jest.spyOn(contract, 'getVault').mockImplementation(async () => testVaults.slice()[2].vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account: new Address(testVaults[2].vault.account),
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result[1]?.index).toBe(testIndexes[1]);
+    });
+  });
+
+  describe('', () => {
+    let contract: VaultsContract;
+    const testIndexes: bigint[] = [
+      149625000n,
+      149625000n,
+      151620000n,
+      157605000n,
+      266000000n,
+      299748750n,
+      333103680n,
+      1134634591n,
+    ];
+
+    const testVaults: Array<{ vaultKey: VaultsTypes['VaultKey']; vault: VaultsTypes['Vault'] }> =
+      createTestVaults(testIndexes);
+
+    beforeEach(() => {
+      contract = new VaultsContract({
+        stellarSDK: {
+          xdr,
+          TransactionBuilder,
+          scValToNative,
+          scValToBigInt,
+          nativeToScVal,
+          Contract,
+          Address,
+          Account,
+          SorobanRpc,
+        },
+        contractId: fakeContract,
+        defaultFee: '100',
+        network,
+        rpc: fakeRpc,
+        simulationAccount: fakeSimulationAccount,
+      });
+
+      jest
+        .spyOn(contract, 'getVaultsInfo')
+        .mockImplementation(() => Promise.resolve(getVaultsInfoMock(['Some', testVaults[0].vaultKey])));
+
+      jest.spyOn(contract, 'getVaults').mockImplementation(async () => testVaults.map(t => t.vault));
+    });
+
+    test('should correctly get the prev_key 1', async () => {
+      const testIndex: bigint = 166250000n;
+      const account: Address = new Address(testVaults[1].vault.account);
+      const vault = testVaults.slice()[1].vault;
+      const expectedPrevVault = testVaults[0].vault;
+      const expectedNewPrevVault = testVaults[3].vault;
+
+      jest
+        .spyOn(contract, 'getVault')
+        .mockImplementation(async ({ user }) => testVaults.find(tv => tv.vault.account === user)!.vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account,
+        denomination: Denomination.USD,
+        targetIndex: vault.index,
+      });
+
+      expect(result[1]?.index).toBe(expectedPrevVault.index);
+      expect(result[1]?.account).toBe(expectedPrevVault.account);
+
+      const result1: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account,
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result1[1]?.index).toBe(expectedNewPrevVault.index);
+      expect(result1[1]?.account).toBe(expectedNewPrevVault.account);
+    });
+
+    test('should correctly get the prev_key 2', async () => {
+      const testIndex: bigint = 299748740n;
+      const account: Address = new Address(testVaults[5].vault.account);
+      const vault = testVaults.slice()[5].vault;
+      const expectedPrevVault = testVaults[4].vault;
+      const expectedNewPrevVault = testVaults[4].vault;
+
+      jest
+        .spyOn(contract, 'getVault')
+        .mockImplementation(async ({ user }) => testVaults.find(tv => tv.vault.account === user)!.vault);
+
+      const result: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account,
+        denomination: Denomination.USD,
+        targetIndex: vault.index,
+      });
+
+      expect(result[1]?.index).toBe(expectedPrevVault.index);
+      expect(result[1]?.account).toBe(expectedPrevVault.account);
+
+      const result1: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
+        account,
+        denomination: Denomination.USD,
+        targetIndex: testIndex,
+        // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
+        ignoreSameAccount: true,
+      });
+
+      expect(result1[1]?.index).toBe(expectedNewPrevVault.index);
+      expect(result1[1]?.account).toBe(expectedNewPrevVault.account);
     });
   });
 });

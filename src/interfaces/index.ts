@@ -1,5 +1,15 @@
-import { Networks } from '@stellar/stellar-sdk';
-import { Api } from '@stellar/stellar-sdk/lib/soroban';
+import {
+  Account,
+  Address,
+  Contract,
+  nativeToScVal,
+  Networks,
+  scValToBigInt,
+  scValToNative,
+  SorobanRpc,
+  TransactionBuilder,
+  xdr,
+} from '@stellar/stellar-sdk';
 
 export type u32 = number;
 export type i32 = number;
@@ -54,6 +64,23 @@ export enum FxDAOSafetyPoolContractMethods {
 }
 
 export interface DefaultContractParams {
+  /**
+   * These are all from the Stellar SDK, import them and pass them to the object.
+   * This is done this way because the `@stellar/stellar-sdk` package and its dependencies rely a lot on `instance of` logic,
+   * that means that we need to use the same objects everytime we can so we avoid issues in those conditions.
+   */
+  stellarSDK: {
+    Account: typeof Account;
+    Address: typeof Address;
+    Contract: typeof Contract;
+    xdr: typeof xdr;
+    TransactionBuilder: typeof TransactionBuilder;
+    SorobanRpc: typeof SorobanRpc;
+    nativeToScVal: typeof nativeToScVal;
+    scValToNative: typeof scValToNative;
+    scValToBigInt: typeof scValToBigInt;
+  };
+
   /*
    * Simulation account is an existing account in the selected network, it doesn't need to be a owned account.
    * This account is used to simulate transactions that won't send a transaction (for example when you get the rate of a currency)

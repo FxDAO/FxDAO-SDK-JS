@@ -1,8 +1,6 @@
-import { nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { Api } from '@stellar/stellar-sdk/lib/soroban';
+import { nativeToScVal, scValToNative, xdr, SorobanRpc } from '@stellar/stellar-sdk';
 import { VaultsTypes } from './interfaces/vaults';
 import { VaultsErrors } from './errors/vaults';
-import { SafetyPoolErrors } from './errors/satefy-pool';
 
 export function calculateVaultIndex(params: { collateral: bigint; debt: bigint }): bigint {
   return (params.collateral * 1000000000n) / params.debt;
@@ -43,7 +41,7 @@ export enum ParseErrorType {
 
 export function parseError(
   type: ParseErrorType,
-  response: Api.SimulateTransactionErrorResponse
+  response: SorobanRpc.Api.SimulateTransactionErrorResponse
 ): {
   error: number;
   message: string;
@@ -60,10 +58,6 @@ export function parseError(
         message = VaultsErrors[error] || 'Unhandled error, please contact support (Code: Vault-00)';
         break;
 
-      case ParseErrorType.safety_pool:
-        message = SafetyPoolErrors[error] || 'Unhandled error, please contact support (Code: SafetyPool-00)';
-        break;
-
       default:
         message = 'Unhandled error';
         break;
@@ -77,7 +71,7 @@ export function parseError(
   };
 }
 
-export function errorCodeFromSimulated(response: Api.SimulateTransactionErrorResponse): number | -1 {
+export function errorCodeFromSimulated(response: SorobanRpc.Api.SimulateTransactionErrorResponse): number | -1 {
   let errorCode: number;
   try {
     const errorCodeVal = (response as any).events

@@ -1,17 +1,4 @@
 import {
-  Account,
-  Address,
-  Contract,
-  Memo,
-  nativeToScVal,
-  scValToBigInt,
-  scValToNative,
-  TransactionBuilder,
-  xdr,
-} from '@stellar/stellar-sdk';
-import { Api, Server } from '@stellar/stellar-sdk/lib/soroban';
-
-import {
   DefaultContractParams,
   DefaultContractTransactionGenerationResponse,
   Denomination,
@@ -22,30 +9,30 @@ import {
 } from '../interfaces';
 import { calculateVaultIndex, generateOptionalVaultKeyScVal, parseError, ParseErrorType } from '../utils';
 import { VaultsTypes } from '../interfaces/vaults';
+import { Account, Address, Contract, Memo, xdr } from '@stellar/stellar-sdk';
+import { SorobanRpc } from '@stellar/stellar-sdk';
 
 export class VaultsContract {
-  private readonly globalParams: DefaultContractParams;
+  constructor(public globalParams: DefaultContractParams) {}
 
-  constructor(params: DefaultContractParams) {
-    this.globalParams = params;
-  }
-
-  get server(): Server {
-    return new Server(this.globalParams.rpc, { allowHttp: !!this.globalParams.allowHttp });
+  get server(): SorobanRpc.Server {
+    return new this.globalParams.stellarSDK.SorobanRpc.Server(this.globalParams.rpc, {
+      allowHttp: !!this.globalParams.allowHttp,
+    });
   }
 
   get contract(): Contract {
-    return new Contract(this.globalParams.contractId);
+    return new this.globalParams.stellarSDK.Contract(this.globalParams.contractId);
   }
 
   async calculateDepositRatio(params: { currencyRate: string; collateral: string; debt: string }): Promise<bigint> {
-    const currencyRate: xdr.ScVal = nativeToScVal(params.currencyRate, { type: 'u128' });
-    const collateral: xdr.ScVal = nativeToScVal(params.collateral, { type: 'u128' });
-    const debt: xdr.ScVal = nativeToScVal(params.debt, { type: 'u128' });
+    const currencyRate: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.currencyRate, { type: 'u128' });
+    const collateral: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.collateral, { type: 'u128' });
+    const debt: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.debt, { type: 'u128' });
 
-    const account = new Account(this.globalParams.simulationAccount, '0');
+    const account = new this.globalParams.stellarSDK.Account(this.globalParams.simulationAccount, '0');
 
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
     })
@@ -54,14 +41,13 @@ export class VaultsContract {
       .build();
 
     const responseValue: xdr.ScVal = await this.server.simulateTransaction(tx).then(response => {
-      if ('error' in response && response.error) throw response.error;
+      if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(response)) throw response.error;
+      if (!response.result) throw new Error();
 
-      return xdr.ScVal.fromXDR(
-        ((response as Api.SimulateTransactionSuccessResponse).result as Api.SimulateHostFunctionResult).retval.toXDR()
-      );
+      return this.globalParams.stellarSDK.xdr.ScVal.fromXDR(response.result.retval.toXDR());
     });
 
-    return scValToBigInt(responseValue);
+    return this.globalParams.stellarSDK.scValToBigInt(responseValue);
   }
 
   async setPriceRate(params: {
@@ -71,10 +57,10 @@ export class VaultsContract {
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
     const account = await this.server.getAccount(params.sourceAccount);
-    const rate: xdr.ScVal = nativeToScVal(params.rate, { type: 'u128' });
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
+    const rate: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.rate, { type: 'u128' });
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
 
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
@@ -94,19 +80,21 @@ export class VaultsContract {
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
     const prevKey = await this.findPrevVaultKey({
-      account: new Address(params.caller),
+      account: new this.globalParams.stellarSDK.Address(params.caller),
       denomination: params.denomination,
       targetIndex: (params.collateralAmount * 1000000000n) / params.initialDebt,
     });
 
     const account = await this.server.getAccount(params.caller);
     const prev_key: xdr.ScVal = generateOptionalVaultKeyScVal(prevKey);
-    const caller: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
-    const initial_debt: xdr.ScVal = nativeToScVal(params.initialDebt, { type: 'u128' });
-    const collateral_amount: xdr.ScVal = nativeToScVal(params.collateralAmount, { type: 'u128' });
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
+    const caller: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(account.accountId(), { type: 'address' });
+    const initial_debt: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.initialDebt, { type: 'u128' });
+    const collateral_amount: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.collateralAmount, {
+      type: 'u128',
+    });
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
 
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
@@ -140,7 +128,7 @@ export class VaultsContract {
     });
 
     const prevKey: VaultsTypes['OptionalVaultKey'] = await this.findPrevVaultKey({
-      account: new Address(params.caller),
+      account: new this.globalParams.stellarSDK.Address(params.caller),
       denomination: currentVault.denomination,
       targetIndex: currentVault.index,
     });
@@ -197,32 +185,33 @@ export class VaultsContract {
       newPrevKey = ['None'];
     } else {
       newPrevKey = await this.findPrevVaultKey({
-        account: new Address(params.caller),
+        account: new this.globalParams.stellarSDK.Address(params.caller),
         denomination: updatedVault.denomination,
         targetIndex: updatedVault.index,
+        ignoreSameAccount: true,
       });
     }
 
     const prev_key: xdr.ScVal = generateOptionalVaultKeyScVal(prevKey);
-    const vault_key: xdr.ScVal = xdr.ScVal.scvMap([
-      new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('account'),
-        val: nativeToScVal(vaultKey.account, { type: 'address' }),
+    const vault_key: xdr.ScVal = this.globalParams.stellarSDK.xdr.ScVal.scvMap([
+      new this.globalParams.stellarSDK.xdr.ScMapEntry({
+        key: this.globalParams.stellarSDK.xdr.ScVal.scvSymbol('account'),
+        val: this.globalParams.stellarSDK.nativeToScVal(vaultKey.account, { type: 'address' }),
       }),
-      new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('denomination'),
-        val: xdr.ScVal.scvSymbol(vaultKey.denomination),
+      new this.globalParams.stellarSDK.xdr.ScMapEntry({
+        key: this.globalParams.stellarSDK.xdr.ScVal.scvSymbol('denomination'),
+        val: this.globalParams.stellarSDK.xdr.ScVal.scvSymbol(vaultKey.denomination),
       }),
-      new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('index'),
-        val: nativeToScVal(vaultKey.index, { type: 'u128' }),
+      new this.globalParams.stellarSDK.xdr.ScMapEntry({
+        key: this.globalParams.stellarSDK.xdr.ScVal.scvSymbol('index'),
+        val: this.globalParams.stellarSDK.nativeToScVal(vaultKey.index, { type: 'u128' }),
       }),
     ]);
     const new_prev_key: xdr.ScVal = generateOptionalVaultKeyScVal(newPrevKey);
-    const amount: xdr.ScVal = nativeToScVal(params.amount, { type: 'u128' });
+    const amount: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.amount, { type: 'u128' });
 
     const account = await this.server.getAccount(params.caller);
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
@@ -240,10 +229,10 @@ export class VaultsContract {
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
     const account = await this.server.getAccount(params.caller);
-    const caller: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
+    const caller: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(account.accountId(), { type: 'address' });
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
 
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
@@ -262,11 +251,13 @@ export class VaultsContract {
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
     const account: Account = await this.server.getAccount(params.caller);
-    const liquidator: xdr.ScVal = nativeToScVal(account.accountId(), { type: 'address' });
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
-    const total_vaults_to_liquidate: xdr.ScVal = nativeToScVal(params.totalVaults, { type: 'u32' });
+    const liquidator: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(account.accountId(), { type: 'address' });
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
+    const total_vaults_to_liquidate: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.totalVaults, {
+      type: 'u32',
+    });
 
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
@@ -283,31 +274,35 @@ export class VaultsContract {
   // --- Pure View functions
 
   async getVaultsInfo(params: { denomination: Denomination }): Promise<VaultsTypes['VaultsInfo']> {
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
 
-    const tx = new TransactionBuilder(new Account(this.globalParams.simulationAccount, '0'), {
-      fee: this.globalParams.defaultFee,
-      networkPassphrase: this.globalParams.network,
-    })
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(
+      new this.globalParams.stellarSDK.Account(this.globalParams.simulationAccount, '0'),
+      {
+        fee: this.globalParams.defaultFee,
+        networkPassphrase: this.globalParams.network,
+      }
+    )
       .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_vaults_info, denomination))
       .setTimeout(0)
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (Api.isSimulationError(simulated)) {
+    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
-    }
+    if (!simulated.result) throw new Error('');
 
-    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
-    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
-    return scValToNative(scVal);
+    const xdrVal: string = simulated.result.retval.toXDR('base64');
+    const scVal: xdr.ScVal = this.globalParams.stellarSDK.xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return this.globalParams.stellarSDK.scValToNative(scVal);
   }
 
   async findPrevVaultKey(params: {
     account: Address;
     targetIndex: u128;
     denomination: Denomination;
+    ignoreSameAccount?: boolean;
   }): Promise<VaultsTypes['OptionalVaultKey']> {
     const vaultsInfo: VaultsTypes['VaultsInfo'] = await this.getVaultsInfo({ denomination: params.denomination });
     let prevKeyValue: VaultsTypes['OptionalVaultKey'];
@@ -328,14 +323,17 @@ export class VaultsContract {
     }
 
     if (vaultsInfo.lowest_key[1].account !== params.account.toString()) {
-      if (vaultsInfo.lowest_key[1].index === params.targetIndex) {
-        return ['None'];
-      }
-
       const lowestVault: VaultsTypes['Vault'] = await this.getVault({
         user: vaultsInfo.lowest_key[1].account,
         denomination: params.denomination,
       });
+
+      if (
+        vaultsInfo.lowest_key[1].index === params.targetIndex &&
+        (lowestVault.next_key[0] === 'None' || lowestVault.next_key[1]?.index > params.targetIndex)
+      ) {
+        return ['None'];
+      }
 
       /**
        * If lowest key has an existing "next_key" value, we check these cases:
@@ -388,7 +386,7 @@ export class VaultsContract {
         if (
           vault.next_key[0] === 'None' ||
           vault.next_key[1].index >= params.targetIndex ||
-          vault.next_key[1].account === params.account.toString()
+          (vault.next_key[1].account === params.account.toString() && !params.ignoreSameAccount)
         ) {
           found = true;
           break;
@@ -405,26 +403,29 @@ export class VaultsContract {
   }
 
   async getVault(params: { user: string; denomination: Denomination }): Promise<VaultsTypes['Vault']> {
-    const user: xdr.ScVal = nativeToScVal(params.user, { type: 'address' });
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
+    const user: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.user, { type: 'address' });
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
 
-    const tx = new TransactionBuilder(new Account(this.globalParams.simulationAccount, '0'), {
-      fee: this.globalParams.defaultFee,
-      networkPassphrase: this.globalParams.network,
-    })
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(
+      new this.globalParams.stellarSDK.Account(this.globalParams.simulationAccount, '0'),
+      {
+        fee: this.globalParams.defaultFee,
+        networkPassphrase: this.globalParams.network,
+      }
+    )
       .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_vault, user, denomination))
       .setTimeout(0)
       .build();
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (Api.isSimulationError(simulated)) {
+    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
-    }
+    if (!simulated.result) throw new Error('');
 
-    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
-    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
-    return scValToNative(scVal);
+    const xdrVal: string = simulated.result.retval.toXDR('base64');
+    const scVal: xdr.ScVal = this.globalParams.stellarSDK.xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return this.globalParams.stellarSDK.scValToNative(scVal);
   }
 
   async getVaults(params: {
@@ -435,12 +436,14 @@ export class VaultsContract {
     memo?: Memo;
   }): Promise<Array<VaultsTypes['Vault']>> {
     const prev_key: xdr.ScVal = generateOptionalVaultKeyScVal(params.prevKey || ['None']);
-    const denomination: xdr.ScVal = nativeToScVal(params.denomination, { type: 'symbol' });
-    const total: xdr.ScVal = nativeToScVal(params.total, { type: 'u32' });
-    const only_to_liquidate: xdr.ScVal = nativeToScVal(params.onlyToLiquidate, { type: 'bool' });
-    const account: Account = new Account(this.globalParams.simulationAccount, '0');
+    const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
+    const total: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.total, { type: 'u32' });
+    const only_to_liquidate: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.onlyToLiquidate, {
+      type: 'bool',
+    });
+    const account: Account = new this.globalParams.stellarSDK.Account(this.globalParams.simulationAccount, '0');
 
-    const tx = new TransactionBuilder(account, {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
       networkPassphrase: this.globalParams.network,
       memo: params.memo,
@@ -453,14 +456,14 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (Api.isSimulationError(simulated)) {
+    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
-    }
+    if (!simulated.result) throw new Error('');
 
     // We do this in order to avoid wierd errors with libraries sharing the Stellar SDK
-    const xdrVal: string = (simulated.result as Api.SimulateHostFunctionResult).retval.toXDR('base64');
-    const scVal: xdr.ScVal = xdr.ScVal.fromXDR(xdrVal, 'base64');
-    return scValToNative(scVal);
+    const xdrVal: string = simulated.result.retval.toXDR('base64');
+    const scVal: xdr.ScVal = this.globalParams.stellarSDK.xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return this.globalParams.stellarSDK.scValToNative(scVal);
   }
 }
 
