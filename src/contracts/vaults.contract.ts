@@ -226,11 +226,43 @@ export class VaultsContract {
   async redeem(params: {
     caller: string;
     denomination: Denomination;
+    amount: u128;
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
     const account = await this.server.getAccount(params.caller);
     const caller: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(account.accountId(), { type: 'address' });
     const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });
+
+    const vaultsInfo: VaultsTypes['VaultsInfo'] = await this.getVaultsInfo({ denomination: params.denomination });
+    const vaults = await this.getVaults({ total: 1, denomination: params.denomination, onlyToLiquidate: false });
+    const lowestVault = vaults.pop();
+
+    if (!lowestVault) throw new Error(`There are no ${params.denomination} vaults.`);
+    if (params.amount > lowestVault.total_debt) throw new Error(`Amount is bigger thant the vault's debt`);
+    if (
+      lowestVault.total_debt !== params.amount &&
+      lowestVault.total_debt - params.amount < vaultsInfo.min_debt_creation
+    )
+      throw new Error(`Vault's min deb will be under the minimum allowed`);
+
+    const currentRate = await this.getCurrencyRate(params);
+
+    let newPrevKey: VaultsTypes['OptionalVaultKey'];
+    if (params.amount === lowestVault.total_debt) {
+      newPrevKey = ['None'];
+    } else {
+      const collateralToRedeem = (params.amount * 10000000n) / currentRate.price;
+
+      newPrevKey = await this.findPrevVaultKey({
+        account: new this.globalParams.stellarSDK.Address(params.caller),
+        denomination: params.denomination,
+        targetIndex: calculateVaultIndex({
+          collateral: lowestVault.total_collateral - collateralToRedeem,
+          debt: lowestVault.total_debt - params.amount,
+        }),
+        ignoreSameAccount: true,
+      });
+    }
 
     const tx = new this.globalParams.stellarSDK.TransactionBuilder(account, {
       fee: this.globalParams.defaultFee,
@@ -238,7 +270,15 @@ export class VaultsContract {
       memo: params.memo,
     })
       .setTimeout(0)
-      .addOperation(this.contract.call(FxDAOVaultsContractMethods.redeem, caller, denomination))
+      .addOperation(
+        this.contract.call(
+          FxDAOVaultsContractMethods.redeem,
+          caller,
+          denomination,
+          generateOptionalVaultKeyScVal(newPrevKey),
+          this.globalParams.stellarSDK.nativeToScVal(params.amount, { type: 'u128' })
+        )
+      )
       .build();
 
     return { transactionXDR: tx.toXDR() };
@@ -272,6 +312,61 @@ export class VaultsContract {
   }
 
   // --- Pure View functions
+
+  async getCoreState(): Promise<VaultsTypes['CoreStateType']> {
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(
+      new this.globalParams.stellarSDK.Account(this.globalParams.simulationAccount, '0'),
+      {
+        fee: this.globalParams.defaultFee,
+        networkPassphrase: this.globalParams.network,
+      }
+    )
+      .addOperation(this.contract.call(FxDAOVaultsContractMethods.get_core_state))
+      .setTimeout(0)
+      .build();
+
+    const simulated = await this.server.simulateTransaction(tx);
+
+    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+      throw parseError(ParseErrorType.vault, simulated);
+    if (!simulated.result) throw new Error('No core state value was returned.');
+
+    const xdrVal: string = simulated.result.retval.toXDR('base64');
+    const scVal: xdr.ScVal = this.globalParams.stellarSDK.xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return this.globalParams.stellarSDK.scValToNative(scVal);
+  }
+
+  async getCurrencyRate(params: { denomination: Denomination }): Promise<{ price: bigint; timestamp: bigint }> {
+    const coreState = await this.getCoreState();
+    const oracle = new Contract(coreState.oracle);
+
+    const tx = new this.globalParams.stellarSDK.TransactionBuilder(
+      new this.globalParams.stellarSDK.Account(this.globalParams.simulationAccount, '0'),
+      { fee: this.globalParams.defaultFee, networkPassphrase: this.globalParams.network }
+    )
+      .addOperation(
+        oracle.call(
+          'lastprice',
+          new this.globalParams.stellarSDK.Address(this.globalParams.contractId).toScVal(),
+          this.globalParams.stellarSDK.xdr.ScVal.scvVec([
+            this.globalParams.stellarSDK.nativeToScVal('Other', { type: 'symbol' }),
+            this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' }),
+          ])
+        )
+      )
+      .setTimeout(0)
+      .build();
+
+    const simulated = await this.server.simulateTransaction(tx);
+
+    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+      throw parseError(ParseErrorType.vault, simulated);
+    if (!simulated.result) throw new Error('No core state value was returned.');
+
+    const xdrVal: string = simulated.result.retval.toXDR('base64');
+    const scVal: xdr.ScVal = this.globalParams.stellarSDK.xdr.ScVal.fromXDR(xdrVal, 'base64');
+    return this.globalParams.stellarSDK.scValToNative(scVal);
+  }
 
   async getVaultsInfo(params: { denomination: Denomination }): Promise<VaultsTypes['VaultsInfo']> {
     const denomination: xdr.ScVal = this.globalParams.stellarSDK.nativeToScVal(params.denomination, { type: 'symbol' });

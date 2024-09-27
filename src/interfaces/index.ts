@@ -44,6 +44,7 @@ export enum FxDAOContracts {
 }
 
 export enum FxDAOVaultsContractMethods {
+  get_core_state = 'get_core_state',
   set_currency_rate = 'set_currency_rate',
   get_vault = 'get_vault',
   get_vaults = 'get_vaults',

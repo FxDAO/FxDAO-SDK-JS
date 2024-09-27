@@ -1,12 +1,14 @@
 import { address, Denomination, u128, u64 } from './index';
 
 interface CoreStateType {
-  admin: address;
   col_token: address;
-  oracle_admin: address;
-  panic_mode: boolean;
-  protocol_manager: address;
   stable_issuer: address;
+  admin: address;
+  protocol_manager: boolean;
+  panic_mode: address;
+  treasury: address;
+  fee: u128;
+  oracle: address;
 }
 
 type CoreDataKeys = ['CoreState'];
