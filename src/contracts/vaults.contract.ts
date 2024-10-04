@@ -183,6 +183,13 @@ export class VaultsContract {
     let newPrevKey: VaultsTypes['OptionalVaultKey'];
     if (updatedVault.index === 0n) {
       newPrevKey = ['None'];
+    } else if (
+      !!prevKey[1] &&
+      prevKey[1].index < updatedVault.index &&
+      !!currentVault.next_key[1] &&
+      updatedVault.index < currentVault.next_key[1].index
+    ) {
+      newPrevKey = prevKey;
     } else {
       newPrevKey = await this.findPrevVaultKey({
         account: new this.globalParams.stellarSDK.Address(params.caller),
