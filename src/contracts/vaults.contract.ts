@@ -79,10 +79,14 @@ export class VaultsContract {
     denomination: Denomination;
     memo?: Memo;
   }): Promise<DefaultContractTransactionGenerationResponse> {
+    const coreState = await this.getCoreState();
+    const fee: u128 = (params.collateralAmount * coreState.fee) / 10000000n;
+    const vaultCollateral: u128 = params.collateralAmount - fee;
+
     const prevKey = await this.findPrevVaultKey({
       account: new this.globalParams.stellarSDK.Address(params.caller),
       denomination: params.denomination,
-      targetIndex: (params.collateralAmount * 1000000000n) / params.initialDebt,
+      targetIndex: (vaultCollateral * 1000000000n) / params.initialDebt,
     });
 
     const account = await this.server.getAccount(params.caller);
