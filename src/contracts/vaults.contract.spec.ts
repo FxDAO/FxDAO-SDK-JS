@@ -321,6 +321,7 @@ describe('Test VaultsContract class', () => {
           const prevKey: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
             ...params,
             targetIndex: testVaultKey.index,
+            vaultExists: true,
           });
 
           expect(prevKey).toEqual(['None']);
@@ -329,6 +330,7 @@ describe('Test VaultsContract class', () => {
           const newPrevKey: VaultsTypes['OptionalVaultKey'] = await contract.findPrevVaultKey({
             ...params,
             targetIndex: testIndex + 100000n,
+            vaultExists: true,
           });
 
           expect(newPrevKey).toEqual(['None']);
@@ -457,7 +459,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result[1]?.index).toBe(testIndexes[3]);
@@ -473,7 +475,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result[0]).toBe('None');
@@ -489,7 +491,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result[1]?.index).toBe(testIndexes[3]);
@@ -505,7 +507,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result[1]?.index).toBe(testIndexes[2]);
@@ -521,7 +523,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result[0]).toBe('None');
@@ -537,7 +539,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result[1]?.index).toBe(testIndexes[1]);
@@ -612,7 +614,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result1[1]?.index).toBe(expectedNewPrevVault.index);
@@ -644,7 +646,7 @@ describe('Test VaultsContract class', () => {
         denomination: Denomination.USD,
         targetIndex: testIndex,
         // We ignore the same account because we are simulating the moment we are paying the debt and the index goes to the max amount
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
 
       expect(result1[1]?.index).toBe(expectedNewPrevVault.index);

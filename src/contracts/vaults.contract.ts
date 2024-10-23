@@ -87,6 +87,7 @@ export class VaultsContract {
       account: new this.globalParams.stellarSDK.Address(params.caller),
       denomination: params.denomination,
       targetIndex: (vaultCollateral * 1000000000n) / params.initialDebt,
+      vaultExists: false,
     });
 
     const account = await this.server.getAccount(params.caller);
@@ -135,6 +136,7 @@ export class VaultsContract {
       account: new this.globalParams.stellarSDK.Address(params.caller),
       denomination: currentVault.denomination,
       targetIndex: currentVault.index,
+      vaultExists: true,
     });
 
     const vaultKey: VaultsTypes['VaultKey'] = {
@@ -199,7 +201,7 @@ export class VaultsContract {
         account: new this.globalParams.stellarSDK.Address(params.caller),
         denomination: updatedVault.denomination,
         targetIndex: updatedVault.index,
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
     }
 
@@ -271,7 +273,7 @@ export class VaultsContract {
           collateral: lowestVault.total_collateral - collateralToRedeem,
           debt: lowestVault.total_debt - params.amount,
         }),
-        ignoreSameAccount: true,
+        vaultExists: false,
       });
     }
 
@@ -408,27 +410,59 @@ export class VaultsContract {
     account: Address;
     targetIndex: u128;
     denomination: Denomination;
-    ignoreSameAccount?: boolean;
+    vaultExists?: boolean;
   }): Promise<VaultsTypes['OptionalVaultKey']> {
-    const vaultsInfo: VaultsTypes['VaultsInfo'] = await this.getVaultsInfo({ denomination: params.denomination });
-    let prevKeyValue: VaultsTypes['OptionalVaultKey'];
+    let prevKeyValue: VaultsTypes['OptionalVaultKey'] = ['None'];
 
-    /**
-     * There are four cases when using the lowest key:
-     * - If the lowest key is "None" it means there is no Vault created
-     * - If the index of the lowest key is higher than the index we are looking for it means this new vault will be the new lowest key
-     * - If the lowest key is owned by the account and it has the same index, we return none since this account if going to still be the lowest key
-     */
-    if (
-      vaultsInfo.lowest_key[0] === 'None' ||
-      vaultsInfo.lowest_key[1].index > params.targetIndex ||
-      (vaultsInfo.lowest_key[1].index === params.targetIndex &&
-        vaultsInfo.lowest_key[1].account === params.account.toString())
-    ) {
-      return ['None'];
-    }
+    if (params.vaultExists) {
+      let found = false;
+      while (!found) {
+        const vaults: Array<VaultsTypes['Vault']> = await this.getVaults({
+          onlyToLiquidate: false,
+          denomination: params.denomination,
+          prevKey: prevKeyValue,
+          total: 15,
+        });
 
-    if (vaultsInfo.lowest_key[1].account !== params.account.toString()) {
+        if (vaults.length === 0) {
+          found = true;
+          break;
+        }
+
+        for (const vault of vaults) {
+          if (vault.account === params.account.toString()) {
+            found = true;
+            break;
+          }
+
+          prevKeyValue = [
+            'Some',
+            {
+              index: vault.index,
+              denomination: vault.denomination,
+              account: vault.account,
+            },
+          ];
+
+          if (vault.next_key[0] === 'None' || vault.next_key[1].account === params.account.toString()) {
+            found = true;
+            break;
+          }
+        }
+      }
+    } else {
+      const vaultsInfo: VaultsTypes['VaultsInfo'] = await this.getVaultsInfo({ denomination: params.denomination });
+
+      /**
+       * There are four cases when using the lowest key:
+       * - If the lowest key is "None" it means there is no Vault created
+       * - If the index of the lowest key is higher than the index we are looking for it means this new vault will be the new lowest key
+       * - If the lowest key is owned by the account and it has the same index, we return none since this account if going to still be the lowest key
+       */
+      if (vaultsInfo.lowest_key[0] === 'None' || vaultsInfo.lowest_key[1].index > params.targetIndex) {
+        return ['None'];
+      }
+
       const lowestVault: VaultsTypes['Vault'] = await this.getVault({
         user: vaultsInfo.lowest_key[1].account,
         denomination: params.denomination,
@@ -451,57 +485,51 @@ export class VaultsContract {
       }
 
       prevKeyValue = vaultsInfo.lowest_key;
-    } else {
-      prevKeyValue = ['None'];
-    }
 
-    let found = false;
-    while (!found) {
-      const vaults: Array<VaultsTypes['Vault']> = await this.getVaults({
-        onlyToLiquidate: false,
-        denomination: params.denomination,
-        prevKey: prevKeyValue,
-        total: 15,
-      });
+      let found = false;
+      while (!found) {
+        const vaults: Array<VaultsTypes['Vault']> = await this.getVaults({
+          onlyToLiquidate: false,
+          denomination: params.denomination,
+          prevKey: prevKeyValue,
+          total: 15,
+        });
 
-      if (vaults.length === 0) {
-        found = true;
-        break;
-      }
-
-      for (const vault of vaults) {
-        // This shouldn't happen but just in case
-        if (prevKeyValue[0] === 'Some' && prevKeyValue[1].account === vault.account) {
-          continue;
-        }
-
-        // If the vault is the same as ours, we ignore it because it can't be a prev vault
-        if (vault.account.toString() === params.account.toString()) {
-          continue;
-        }
-
-        prevKeyValue = [
-          'Some',
-          {
-            account: vault.account,
-            denomination: vault.denomination,
-            index: vault.index,
-          },
-        ];
-
-        if (
-          vault.next_key[0] === 'None' ||
-          vault.next_key[1].index >= params.targetIndex ||
-          (vault.next_key[1].account === params.account.toString() && !params.ignoreSameAccount)
-        ) {
+        if (vaults.length === 0) {
           found = true;
           break;
         }
-      }
 
-      // If the number of vaults we got is lower than those we requested is because are no more options there.
-      if (vaults.length < 15) {
-        found = true;
+        for (const vault of vaults) {
+          // This shouldn't happen but just in case
+          if (prevKeyValue[0] === 'Some' && prevKeyValue[1].account === vault.account) {
+            continue;
+          }
+
+          // If the vault is the same as ours, we ignore it because it can't be a prev vault
+          if (vault.account.toString() === params.account.toString()) {
+            continue;
+          }
+
+          prevKeyValue = [
+            'Some',
+            {
+              account: vault.account,
+              denomination: vault.denomination,
+              index: vault.index,
+            },
+          ];
+
+          if (vault.next_key[0] === 'None' || vault.next_key[1].index >= params.targetIndex) {
+            found = true;
+            break;
+          }
+        }
+
+        // If the number of vaults we got is lower than those we requested is because there are no more options there.
+        if (vaults.length < 15) {
+          found = true;
+        }
       }
     }
 
