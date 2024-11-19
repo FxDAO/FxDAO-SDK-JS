@@ -1,6 +1,6 @@
 {
   "name": "@fxdao/fxdao-sdk-js",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "A JS package for interacting with the FxDAO contracts easily",
   "main": "index.js",
   "types": "index.d.ts",
