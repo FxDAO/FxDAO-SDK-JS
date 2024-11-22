@@ -10,13 +10,13 @@ import {
 import { calculateVaultIndex, generateOptionalVaultKeyScVal, parseError, ParseErrorType } from '../utils';
 import { VaultsTypes } from '../interfaces/vaults';
 import { Account, Address, Contract, Memo, xdr } from '@stellar/stellar-sdk';
-import { SorobanRpc } from '@stellar/stellar-sdk';
+import { rpc } from '@stellar/stellar-sdk';
 
 export class VaultsContract {
   constructor(public globalParams: DefaultContractParams) {}
 
-  get server(): SorobanRpc.Server {
-    return new this.globalParams.stellarSDK.SorobanRpc.Server(this.globalParams.rpc, {
+  get server(): rpc.Server {
+    return new this.globalParams.stellarSDK.rpc.Server(this.globalParams.rpc, {
       allowHttp: !!this.globalParams.allowHttp,
     });
   }
@@ -41,7 +41,7 @@ export class VaultsContract {
       .build();
 
     const responseValue: xdr.ScVal = await this.server.simulateTransaction(tx).then(response => {
-      if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(response)) throw response.error;
+      if (this.globalParams.stellarSDK.rpc.Api.isSimulationError(response)) throw response.error;
       if (!response.result) throw new Error();
 
       return this.globalParams.stellarSDK.xdr.ScVal.fromXDR(response.result.retval.toXDR());
@@ -340,7 +340,7 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+    if (this.globalParams.stellarSDK.rpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
     if (!simulated.result) throw new Error('No core state value was returned.');
 
@@ -372,7 +372,7 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+    if (this.globalParams.stellarSDK.rpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
     if (!simulated.result) throw new Error('No core state value was returned.');
 
@@ -397,7 +397,7 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+    if (this.globalParams.stellarSDK.rpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
     if (!simulated.result) throw new Error('');
 
@@ -553,7 +553,7 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+    if (this.globalParams.stellarSDK.rpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
     if (!simulated.result) throw new Error('');
 
@@ -590,7 +590,7 @@ export class VaultsContract {
 
     const simulated = await this.server.simulateTransaction(tx);
 
-    if (this.globalParams.stellarSDK.SorobanRpc.Api.isSimulationError(simulated))
+    if (this.globalParams.stellarSDK.rpc.Api.isSimulationError(simulated))
       throw parseError(ParseErrorType.vault, simulated);
     if (!simulated.result) throw new Error('');
 

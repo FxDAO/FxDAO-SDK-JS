@@ -6,7 +6,7 @@ import {
   Networks,
   scValToBigInt,
   scValToNative,
-  SorobanRpc,
+  rpc,
   TransactionBuilder,
   xdr,
 } from '@stellar/stellar-sdk';
@@ -76,7 +76,7 @@ export interface DefaultContractParams {
     Contract: typeof Contract;
     xdr: typeof xdr;
     TransactionBuilder: typeof TransactionBuilder;
-    SorobanRpc: typeof SorobanRpc;
+    rpc: typeof rpc;
     nativeToScVal: typeof nativeToScVal;
     scValToNative: typeof scValToNative;
     scValToBigInt: typeof scValToBigInt;
