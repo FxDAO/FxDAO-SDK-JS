@@ -57,7 +57,7 @@ interface VaultIndexKey {
 
 type VaultsDataKeys = ['VaultsInfo', Denomination] | ['Vault', VaultKey] | ['VaultIndex', VaultIndexKey];
 
-enum FindPrevKeyOperationType {
+export enum FindPrevKeyOperationType {
   new_vault = 'new_vault',
   redeem = 'redeem',
   increase_collateral = 'increase_collateral',

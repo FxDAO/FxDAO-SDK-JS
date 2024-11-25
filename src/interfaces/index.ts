@@ -28,6 +28,7 @@ export type SymbolType = string;
 export enum Denomination {
   USD = 'USD',
   EUR = 'EUR',
+  GBP = 'GBP',
 }
 
 export enum UpdateVaultOperationType {

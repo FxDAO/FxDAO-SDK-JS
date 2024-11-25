@@ -1,19 +1,36 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
+    "skipLibCheck": true,
+    "target": "ESNext",
+    "outDir": "lib",
+    "rootDir": "src",
+    "moduleResolution": "Node",
     "declaration": true,
     "declarationMap": true,
-    "outDir": "./lib",
-    "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": false,
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "traceResolution": false,
+    "listEmittedFiles": false,
+    "listFiles": false,
+    "pretty": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
   },
-  "include": ["src"],
+  "include": ["src/**/*.ts"],
   "exclude": [
-    "node_modules",
+    "node_modules/**",
     "src/**/*.spec.ts",
     "src/**/*.test.ts"
-  ]
+  ],
+  "compileOnSave": false
 }

@@ -47,6 +47,7 @@ export function parseError(
   message: string;
   diagnostic?: string;
 } {
+  console.error(response.error);
   const error: number = errorCodeFromSimulated(response);
   let message: string;
 
