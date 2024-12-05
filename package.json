@@ -1,20 +1,17 @@
 {
   "name": "@fxdao/fxdao-sdk-js",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "A JS package for interacting with the FxDAO contracts easily",
   "main": "index.js",
   "types": "index.d.ts",
   "type": "module",
-  "files": [
-    "lib",
-    "LICENSE",
-    "README.md",
-    "package.json"
-  ],
   "scripts": {
     "build": "npx rimraf ./lib && npx tsc -p .",
     "copyfiles": "cp ./package.json ./lib && cp ./LICENSE ./lib && cp ./README.md ./lib",
     "all": "pnpm run build && pnpm run copyfiles"
+  },
+  "repository": {
+    "url": "https://github.com/FxDAO/FxDAO-SDK-JS/"
   },
   "author": "FxDAO LLC (https://fxdao.io)",
   "license": "MIT",
